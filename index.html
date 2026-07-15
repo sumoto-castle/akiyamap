@@ -636,7 +636,7 @@ const houses = [
 const map = L.map('map', {
   zoomControl: false,
   attributionControl: true,
-  minZoom: 5,           // 淡路島から大きく離れられないよう最小ズームを制限
+  minZoom: 30,           // 淡路島から大きく離れられないよう最小ズームを制限
   maxBoundsViscosity: 1.0 // 範囲外へのドラッグをしっかり跳ね返す
 }).setView([34.45, 134.90], 10);
 
