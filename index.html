@@ -2,169 +2,1069 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>淡路島 洲本市 空家等活用促進区域 MAP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E">
 
-<title>洲本市 空き家活用特区マップ</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<!-- ==================== 外部リソース ==================== -->
+<!-- Leaflet 本体 -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Googleフォント：見出し=Zen Kaku Gothic New（上品な角ゴシック）／本文=Noto Sans JP -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
-html,body{
-    margin:0;
-    height:100%;
-    font-family:-apple-system,BlinkMacSystemFont,"Yu Gothic","Meiryo",sans-serif;
+/* =========================================================================
+   全体共通設定（CSS変数でテーマカラー・余白・角丸を一元管理）
+   ========================================================================= */
+:root{
+  --color-primary: #FF9800;         /* 特区テーマカラー（オレンジ／固定指定） */
+  --color-primary-dark: #E9821C;
+  --color-primary-deep: #B4590A;    /* 見出しなどに使う濃いオレンジ（可読性用） */
+  --color-primary-soft: rgba(255,152,0,0.30);
+  --color-accent: #1a73e8;          /* 操作系（Googleマップ風ブルー） */
+  --color-accent-dark: #1558b0;
+  --color-ink: #2a2420;             /* 純黒ではなく温かみのある墨色 */
+  --color-ink-sub: #776f66;
+  --color-line: rgba(42,36,32,0.09);
+  --color-bg-glass: rgba(255,255,255,0.86);
+  --color-bg-glass-strong: rgba(255,255,255,0.97);
+  --color-paper: #FFFDF9;           /* 純白よりわずかに温かい紙色 */
+  --radius-xl: 26px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 9px;
+  --shadow-soft: 0 4px 18px rgba(42,36,32,0.13), 0 1px 3px rgba(42,36,32,0.09);
+  --shadow-hover: 0 10px 30px rgba(42,36,32,0.20), 0 2px 6px rgba(42,36,32,0.12);
+  --shadow-modal: 0 24px 60px rgba(20,16,12,0.35);
+  --ease: cubic-bezier(.4,0,.2,1);
+  --t-fast: 0.18s var(--ease);
+  --t-mid: 0.34s var(--ease);
 }
 
-#map{
-    width:100%;
-    height:100vh;
+*{ box-sizing: border-box; }
+
+html, body{
+  margin:0; padding:0; width:100%; height:100%;
+  font-family:'Noto Sans JP', sans-serif;
+  color:var(--color-ink);
+  overflow:hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.info{
-    position:absolute;
-    top:15px;
-    left:15px;
-    z-index:1000;
+.font-display{ font-family:'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif; letter-spacing:0.01em; }
 
-    background:white;
-    padding:15px 18px;
-    border-radius:12px;
-    box-shadow:0 6px 18px rgba(0,0,0,.15);
+/* =========================================================================
+   地図本体
+   ========================================================================= */
+#map{ position:absolute; inset:0; width:100%; height:100%; background:#eef1f3; }
+
+/* Leafletの吹き出しをガラス風・角丸・上質な影にカスタマイズ */
+.leaflet-popup-content-wrapper{
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-hover);
+  padding:0; overflow:hidden;
+  background: var(--color-paper);
+}
+.leaflet-popup-content{ margin:0; width:290px !important; }
+.leaflet-popup-tip{ box-shadow: var(--shadow-soft); background:var(--color-paper); }
+.leaflet-container a.leaflet-popup-close-button{
+  color:#fff; font-size:19px; top:9px; right:10px;
+  text-shadow:0 1px 3px rgba(0,0,0,.45); z-index:5;
 }
 
-.info h2{
-    margin:0;
-    font-size:20px;
+/* =========================================================================
+   共通：ガラス風パネル
+   ========================================================================= */
+.glass-panel{
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(16px) saturate(170%);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(255,255,255,0.65);
+}
+.glass-panel-strong{
+  background: var(--color-bg-glass-strong);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
-.info p{
-    margin:6px 0 0;
-    color:#666;
-    font-size:14px;
+@keyframes dropIn{
+  from{ opacity:0; transform:translateY(-14px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+@keyframes riseIn{
+  from{ opacity:0; transform:translateY(16px); }
+  to{ opacity:1; transform:translateY(0); }
 }
 
-.leaflet-popup-content{
-    line-height:1.8;
-    font-size:15px;
+/* =========================================================================
+   左上：特区インフォカード（コンパクト＋統計チップ＋詳細ボタン）
+   ========================================================================= */
+#info-card{
+  position:absolute; top:16px; left:16px;
+  width:246px; z-index:600;
+  padding:14px 15px 12px 15px;
+  animation: dropIn 0.5s var(--ease);
 }
+#info-card .info-eyebrow{
+  font-size:10px; font-weight:700; letter-spacing:0.06em;
+  color: var(--color-primary-deep);
+  margin:0 0 3px 0;
+}
+#info-card .info-title{
+  display:flex; align-items:center; gap:6px;
+  font-size:15px; font-weight:700; color:var(--color-ink);
+  margin:0 0 5px 0; line-height:1.3;
+}
+#info-card .info-desc{
+  font-size:11px; color:var(--color-ink-sub); line-height:1.55;
+  margin:0 0 10px 0;
+}
+#info-card .info-stats-row{
+  display:flex; gap:6px; margin-bottom:10px;
+}
+#info-card .info-stat{
+  flex:1; text-align:center;
+  background: rgba(255,152,0,0.08);
+  border-radius: var(--radius-sm);
+  padding:5px 2px;
+}
+#info-card .info-stat .num{
+  display:block; font-size:13px; font-weight:700; color:var(--color-primary-deep);
+  font-family:'Zen Kaku Gothic New', sans-serif;
+}
+#info-card .info-stat .lbl{ display:block; font-size:9px; color:var(--color-ink-sub); margin-top:1px; }
 
-.leaflet-tooltip{
-    background:white;
-    border:none;
-    border-radius:8px;
-    box-shadow:0 3px 12px rgba(0,0,0,.2);
-    padding:8px 12px;
-    font-weight:bold;
+#info-card .info-more-btn{
+  width:100%; border:none; cursor:pointer;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color:#fff; font-weight:700; font-size:12px;
+  padding:9px 10px; border-radius: 24px;
+  display:flex; align-items:center; justify-content:center; gap:4px;
+  transition: transform var(--t-fast), box-shadow var(--t-fast);
+  box-shadow: 0 4px 12px rgba(255,152,0,0.38);
+}
+#info-card .info-more-btn:hover{ transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255,152,0,0.48); }
+#info-card .info-more-btn:active{ transform: translateY(0); }
+
+/* =========================================================================
+   左側：空き家バンク サイドパネル
+   ========================================================================= */
+#bank-panel{
+  position:absolute; top:216px; left:16px; bottom:16px;
+  width:246px; z-index:550;
+  display:flex; flex-direction:column; overflow:hidden;
+  animation: dropIn 0.6s var(--ease) 0.05s backwards;
+}
+#bank-panel .bank-header{
+  padding:13px 15px 9px 15px;
+  font-size:13.5px; font-weight:700;
+  display:flex; align-items:center; gap:6px;
+  border-bottom:1px solid var(--color-line);
+  flex-shrink:0;
+}
+#bank-panel .bank-header .count-chip{
+  margin-left:auto; background: var(--color-accent);
+  color:#fff; font-size:10.5px; font-weight:700;
+  padding:2px 8px; border-radius:20px;
+}
+#bank-list{
+  overflow-y:auto; padding:10px 10px 14px 10px; flex:1;
+  scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.22) transparent;
+}
+#bank-list::-webkit-scrollbar{ width:5px; }
+#bank-list::-webkit-scrollbar-thumb{ background:rgba(0,0,0,0.2); border-radius:10px; }
+
+.house-card{
+  background:var(--color-paper);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 4px rgba(42,36,32,0.09);
+  margin-bottom:10px; overflow:hidden; cursor:pointer;
+  transition: transform var(--t-fast), box-shadow var(--t-fast);
+  border:1px solid var(--color-line);
+}
+.house-card:hover{ transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+.house-card .card-photo-wrap{ width:100%; height:100px; overflow:hidden; position:relative; background:#f1f1f1; }
+.house-card .card-photo-wrap img{ width:100%; height:100%; object-fit:cover; display:block; transition: transform var(--t-mid); }
+.house-card:hover .card-photo-wrap img{ transform: scale(1.08); }
+.house-card .card-photo-wrap::after{
+  content:'📷'; position:absolute; right:6px; bottom:6px;
+  background:rgba(0,0,0,0.45); color:#fff; font-size:11px; padding:2px 6px; border-radius:8px;
+}
+.house-card .card-badge{
+  position:absolute; left:7px; top:7px;
+  background: rgba(255,152,0,0.92); color:#fff;
+  font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:20px;
+}
+.house-card .card-body{ padding:9px 11px 11px 11px; }
+.house-card .card-title{ font-size:13px; font-weight:700; color:var(--color-ink); margin:0 0 3px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.house-card .card-sub{ font-size:11px; color:var(--color-ink-sub); margin:0 0 8px 0; }
+.house-card .card-link{ display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:700; color:var(--color-accent); text-decoration:none; }
+.house-card .card-link:hover{ color:var(--color-accent-dark); text-decoration:underline; }
+
+#bank-toggle-btn{ display:none; }
+
+/* =========================================================================
+   検索ボックス
+   ========================================================================= */
+#search-box{
+  position:absolute; top:16px; left:50%; transform:translateX(-50%);
+  width:min(420px, 60vw); z-index:600;
+  display:flex; align-items:center; padding:4px 6px 4px 16px;
+  animation: dropIn 0.5s var(--ease);
+}
+#search-box input{ flex:1; border:none; outline:none; background:transparent; font-size:14px; font-family:inherit; color:var(--color-ink); padding:8px 4px; }
+#search-box input::placeholder{ color:#a39a8f; }
+#search-box button{
+  border:none; background: var(--color-accent); color:#fff; width:34px; height:34px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer; flex-shrink:0;
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+#search-box button:hover{ background:var(--color-accent-dark); transform:scale(1.06); }
+#search-box button:active{ transform:scale(0.94); }
+
+#search-suggest{
+  position:absolute; top:52px; left:50%; transform:translateX(-50%);
+  width:min(420px, 60vw); z-index:599; max-height:220px; overflow-y:auto; display:none;
+}
+#search-suggest .suggest-item{ padding:10px 14px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--color-line); transition: background var(--t-fast); }
+#search-suggest .suggest-item:last-child{ border-bottom:none; }
+#search-suggest .suggest-item:hover{ background:rgba(255,152,0,0.12); }
+
+/* =========================================================================
+   右下：フローティング操作ボタン群
+   ========================================================================= */
+#control-stack{ position:absolute; right:14px; bottom:34px; z-index:600; display:flex; flex-direction:column; align-items:flex-end; gap:12px; }
+.fab-group{ display:flex; flex-direction:column; border-radius: var(--radius-md); overflow:hidden; box-shadow: var(--shadow-soft); }
+.fab-btn{
+  width:42px; height:42px; display:flex; align-items:center; justify-content:center;
+  background: var(--color-bg-glass-strong); border:none; cursor:pointer; font-size:18px; color:var(--color-ink);
+  transition: background var(--t-fast), transform var(--t-fast); position:relative;
+}
+.fab-btn + .fab-btn{ border-top:1px solid var(--color-line); }
+.fab-btn:hover{ background:#fff; }
+.fab-btn:active{ transform:scale(0.92); }
+.fab-single{ width:42px; height:42px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); }
+
+.locating .fab-icon{ animation: spin 1s linear infinite; }
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+#layer-switch{ position:relative; }
+#layer-panel{ position:absolute; right:50px; bottom:0; width:150px; padding:8px; display:none; z-index:601; }
+#layer-panel.open{ display:flex; gap:8px; }
+.layer-option{ flex:1; cursor:pointer; text-align:center; border-radius: var(--radius-sm); overflow:hidden; border:2px solid transparent; transition: border-color var(--t-fast); }
+.layer-option.active{ border-color: var(--color-accent); }
+.layer-option .thumb{ height:44px; width:100%; background-size:cover; background-position:center; }
+.layer-option span{ display:block; font-size:10px; padding:3px 0; font-weight:600; background:#fff; }
+.thumb.standard{ background: linear-gradient(135deg,#eef1f3,#cfd8dc); }
+.thumb.satellite{ background: linear-gradient(135deg,#33422f,#5a6e3f); }
+
+/* =========================================================================
+   カスタムマーカー（家型オレンジピン）／現在地マーカー
+   ========================================================================= */
+.custom-house-marker{ background:transparent; border:none; }
+.marker-pin{
+  width:36px; height:36px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  border:3px solid #fff; border-radius:50% 50% 50% 0; transform: rotate(-45deg);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  display:flex; align-items:center; justify-content:center;
+  transition: transform var(--t-fast), box-shadow var(--t-fast);
+}
+.marker-icon{ transform: rotate(45deg); font-size:16px; line-height:1; }
+.custom-house-marker:hover .marker-pin{ transform: rotate(-45deg) scale(1.18); box-shadow: 0 5px 14px rgba(0,0,0,0.42); }
+
+.my-location-dot{ width:18px; height:18px; background:var(--color-accent); border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 4px rgba(26,115,232,0.28), 0 2px 6px rgba(0,0,0,0.3); }
+
+/* =========================================================================
+   ポップアップ：空き家バンク物件
+   ========================================================================= */
+.popup-house .popup-photo{ width:100%; height:130px; object-fit:cover; display:block; }
+.popup-house .popup-body{ padding:13px 16px 15px 16px; }
+.popup-house .popup-title{ font-size:14.5px; font-weight:700; margin:0 0 3px 0; }
+.popup-house .popup-sub{ font-size:11.5px; color:var(--color-ink-sub); margin:0 0 8px 0; }
+.popup-house .popup-address{ font-size:12px; color:var(--color-ink); margin:0 0 4px 0; display:flex; gap:5px; align-items:flex-start; }
+.popup-house .popup-desc{ font-size:12px; color:var(--color-ink); line-height:1.6; margin:6px 0 10px 0; }
+.popup-house .popup-cta{
+  display:inline-flex; align-items:center; gap:5px; background: var(--color-accent); color:#fff !important;
+  text-decoration:none; font-size:12.5px; font-weight:700; padding:8px 14px; border-radius: 24px;
+  transition: background var(--t-fast);
+}
+.popup-house .popup-cta:hover{ background: var(--color-accent-dark); }
+
+/* =========================================================================
+   ポップアップ：空家等活用促進区域（GeoJSON）— 実データを使った詳細表示
+   ========================================================================= */
+.popup-tokku{ padding:0; }
+.popup-tokku .popup-band{
+  background: linear-gradient(120deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  padding:14px 16px 12px 16px; color:#fff;
+}
+.popup-tokku .popup-eyebrow{ font-size:10px; font-weight:700; letter-spacing:0.08em; opacity:0.92; margin:0 0 2px 0; }
+.popup-tokku .popup-title{ font-size:16px; font-weight:900; margin:0; display:flex; align-items:center; gap:5px; }
+.popup-tokku .popup-body{ padding:13px 16px 16px 16px; }
+.popup-tokku .popup-stats{ display:flex; gap:6px; margin-bottom:10px; }
+.popup-tokku .stat-box{ flex:1; text-align:center; background:rgba(255,152,0,0.08); border-radius:10px; padding:6px 2px; }
+.popup-tokku .stat-box .val{ display:block; font-size:14px; font-weight:800; color:var(--color-primary-deep); font-family:'Zen Kaku Gothic New', sans-serif; }
+.popup-tokku .stat-box .lbl{ display:block; font-size:9.5px; color:var(--color-ink-sub); margin-top:1px; }
+.popup-tokku .popup-desc{ font-size:12px; line-height:1.65; color:var(--color-ink); margin:0 0 12px 0; }
+.popup-tokku .popup-more-btn{
+  width:100%; border:none; cursor:pointer; background: var(--color-ink); color:#fff;
+  font-size:12px; font-weight:700; padding:9px 10px; border-radius:22px;
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+.popup-tokku .popup-more-btn:hover{ background:#000; transform: translateY(-1px); }
+
+/* =========================================================================
+   詳細モーダル：空家等活用促進区域について
+   ========================================================================= */
+.modal-overlay{
+  position:fixed; inset:0; z-index:1000;
+  background: rgba(24,18,12,0.46);
+  backdrop-filter: blur(3px);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; visibility:hidden; pointer-events:none;
+  transition: opacity var(--t-mid), visibility var(--t-mid);
+  padding:20px;
+}
+.modal-overlay.open{ opacity:1; visibility:visible; pointer-events:auto; }
+.modal-panel{
+  width:min(600px, 100%); max-height:84vh; overflow-y:auto;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  transform: translateY(18px) scale(0.98);
+  transition: transform var(--t-mid);
+  scrollbar-width: thin;
+}
+.modal-overlay.open .modal-panel{ transform: translateY(0) scale(1); }
+
+.modal-header{
+  position:sticky; top:0; z-index:2;
+  background: linear-gradient(120deg, var(--color-primary) 0%, var(--color-primary-dark) 55%, var(--color-primary-deep) 100%);
+  padding:22px 24px 20px 24px; color:#fff;
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+}
+.modal-header-inner .modal-eyebrow{ font-size:11px; font-weight:700; letter-spacing:0.09em; opacity:0.9; margin:0 0 4px 0; }
+.modal-header-inner .modal-title{ font-size:21px; font-weight:900; margin:0; line-height:1.35; }
+.modal-close{
+  flex-shrink:0; width:32px; height:32px; border-radius:50%; border:none; cursor:pointer;
+  background: rgba(255,255,255,0.22); color:#fff; font-size:15px;
+  display:flex; align-items:center; justify-content:center;
+  transition: background var(--t-fast);
+}
+.modal-close:hover{ background: rgba(255,255,255,0.36); }
+
+.modal-body{ background: var(--color-paper); padding:22px 24px 26px 24px; }
+.modal-section{ margin-bottom:22px; }
+.modal-section:last-child{ margin-bottom:0; }
+.modal-section h3{
+  font-family:'Zen Kaku Gothic New', sans-serif;
+  font-size:14.5px; font-weight:700; margin:0 0 10px 0;
+  display:flex; align-items:center; gap:6px;
+  padding-bottom:6px; border-bottom:2px solid var(--color-primary-soft);
+}
+.modal-section p{ font-size:13px; line-height:1.85; color:var(--color-ink); margin:0; }
+.modal-list{ margin:0; padding-left:1.2em; font-size:13px; line-height:1.9; color:var(--color-ink); }
+.modal-list li{ margin-bottom:2px; }
+
+.district-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+.district-card{ background:#fff; border:1px solid var(--color-line); border-radius: var(--radius-md); padding:12px 13px; }
+.district-card .d-name{ font-size:13px; font-weight:700; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; }
+.district-card .d-name .d-count{ font-size:10px; font-weight:600; color:var(--color-ink-sub); background:rgba(0,0,0,0.05); padding:1px 7px; border-radius:10px; }
+.district-card .d-row{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--color-ink-sub); margin-bottom:3px; }
+.district-card .d-row b{ color:var(--color-ink); font-weight:700; }
+.district-card .d-bar-track{ height:5px; border-radius:3px; background:rgba(255,152,0,0.15); margin-top:7px; overflow:hidden; }
+.district-card .d-bar-fill{ height:100%; background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark)); border-radius:3px; transition: width 0.8s var(--ease); }
+
+.modal-note{ background: rgba(255,152,0,0.07); border-radius: var(--radius-md); padding:13px 15px; }
+.modal-note p{ font-size:11.5px; color:var(--color-ink-sub); line-height:1.7; }
+
+.modal-summary-row{ display:flex; gap:8px; margin-bottom:16px; }
+.modal-summary-row .s-box{ flex:1; text-align:center; background:#fff; border:1px solid var(--color-line); border-radius: var(--radius-md); padding:10px 6px; }
+.modal-summary-row .s-box .s-val{ font-size:18px; font-weight:900; font-family:'Zen Kaku Gothic New', sans-serif; color:var(--color-primary-deep); display:block; }
+.modal-summary-row .s-box .s-lbl{ font-size:10px; color:var(--color-ink-sub); margin-top:2px; display:block; }
+
+/* -------------------------------------------------------------------------
+   空き家バンク：詳細モーダル（写真をまず確認でき、サイトへは自分の意思で移動）
+------------------------------------------------------------------------- */
+.house-modal-panel{ width:min(420px, 100%); padding:0; position:relative; }
+.house-modal-close{
+  position:absolute; top:12px; right:12px; z-index:3;
+  background: rgba(20,16,12,0.5); color:#fff;
+}
+.house-modal-close:hover{ background: rgba(20,16,12,0.7); }
+.house-modal-photo{ width:100%; height:220px; object-fit:cover; display:block; background:#f1f1f1; }
+.house-modal-eyebrow{
+  display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.04em;
+  color:#fff; background: var(--color-primary); padding:3px 10px; border-radius:20px; margin:0 0 10px 0;
+}
+.house-modal-title{ font-size:19px; margin:0 0 4px 0; }
+.house-modal-sub{ font-size:12.5px; color:var(--color-ink-sub); margin:0 0 10px 0; }
+.house-modal-address{ margin:0 0 12px 0; font-size:12.5px; }
+.house-modal-desc{ font-size:13px; line-height:1.75; color:var(--color-ink); margin:0 0 18px 0; }
+.house-modal-link{ display:flex; justify-content:center; }
+
+/* =========================================================================
+   スケールバー／帰属表示／純正ズームの調整
+   ========================================================================= */
+.leaflet-control-scale{ margin-bottom: 8px !important; margin-left: 10px !important; }
+.leaflet-control-scale-line{
+  background: rgba(255,255,255,0.85); border:2px solid rgba(0,0,0,0.35); border-top:none;
+  font-size:11px; padding:1px 5px; border-radius:0 0 4px 4px;
+}
+.leaflet-control-attribution{ background:rgba(255,255,255,0.7) !important; font-size:10px !important; }
+.leaflet-control-zoom{ display:none; }
+
+/* =========================================================================
+   ローディングオーバーレイ
+   ========================================================================= */
+#loading-overlay{
+  position:absolute; inset:0; z-index:900; background:var(--color-paper);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+  transition: opacity var(--t-mid), visibility var(--t-mid);
+}
+#loading-overlay.hidden{ opacity:0; visibility:hidden; pointer-events:none; }
+.loading-spinner{ width:44px; height:44px; border:4px solid rgba(255,152,0,0.25); border-top-color: var(--color-primary); border-radius:50%; animation: spin 0.9s linear infinite; }
+#loading-overlay p{ font-size:13px; color:var(--color-ink-sub); font-weight:500; }
+
+/* トースト通知 */
+#toast{
+  position:absolute; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); z-index:999;
+  padding:10px 20px; font-size:13px; font-weight:600;
+  background: rgba(32,26,20,0.92); color:#fff; border-radius: 24px;
+  opacity:0; pointer-events:none; transition: opacity var(--t-mid), transform var(--t-mid);
+}
+#toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* =========================================================================
+   レスポンシブ（スマートフォン対応）
+   ========================================================================= */
+@media (max-width: 768px){
+  #search-box{ width:calc(100vw - 32px); top:12px; }
+  #search-suggest{ width:calc(100vw - 32px); }
+
+  #info-card{ width:auto; max-width:60vw; top:64px; left:10px; padding:11px 12px 10px 12px; }
+  #info-card .info-title{ font-size:13px; }
+  #info-card .info-desc{ display:none; } /* スマホでは余白節約のため説明文は詳細ボタンに集約 */
+  #info-card .info-stats-row{ display:none; }
+  #info-card .info-more-btn{ font-size:11px; padding:7px 8px; }
+
+  #bank-panel{
+    top:auto; left:0; right:0; bottom:0; width:100%; height:60vh;
+    border-radius: 22px 22px 0 0;
+    transform: translateY(calc(100% - 54px));
+    transition: transform var(--t-mid);
+  }
+  #bank-panel.open{ transform: translateY(0); }
+  #bank-panel .bank-header{ cursor:pointer; padding-top:16px; }
+  #bank-panel::before{
+    content:''; position:absolute; top:8px; left:50%; transform:translateX(-50%);
+    width:40px; height:4px; border-radius:4px; background:rgba(0,0,0,0.18);
+  }
+  #bank-toggle-btn{ display:flex; }
+
+  .district-grid{ grid-template-columns: 1fr; }
+  .modal-summary-row{ flex-wrap:wrap; }
+  .modal-header{ padding:18px 18px 16px 18px; }
+  .modal-body{ padding:18px 18px 22px 18px; }
 }
 </style>
-
 </head>
 <body>
 
-<div class="info">
-<h2>🏠 空き家活用特区</h2>
-<p>兵庫県洲本市</p>
+<!-- ==================== ローディングオーバーレイ ==================== -->
+<div id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <p>地図データを読み込み中...</p>
 </div>
 
+<!-- ==================== 地図本体 ==================== -->
 <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- ==================== 検索ボックス ==================== -->
+<div id="search-box" class="glass-panel">
+  <input type="text" id="search-input" placeholder="住所・地名で検索（例：洲本市本町）">
+  <button id="search-btn" title="検索">🔍</button>
+</div>
+<div id="search-suggest" class="glass-panel"></div>
+
+<!-- ==================== 左上：特区インフォカード ==================== -->
+<div id="info-card" class="glass-panel">
+  <p class="info-eyebrow">兵庫県 洲本市指定</p>
+  <p class="info-title font-display">🏠 空家等活用促進区域</p>
+  <p class="info-desc">空き家をカフェ・宿泊施設・工房などへ活用しやすくする区域です。</p>
+  <div class="info-stats-row" id="info-stats-row">
+    <div class="info-stat"><span class="num" id="stat-districts">-</span><span class="lbl">地区</span></div>
+    <div class="info-stat"><span class="num" id="stat-population">-</span><span class="lbl">人口</span></div>
+    <div class="info-stat"><span class="num" id="stat-households">-</span><span class="lbl">世帯</span></div>
+  </div>
+  <button class="info-more-btn" id="info-more-btn">くわしく見る <span>›</span></button>
+</div>
+
+<!-- ==================== 左側：空き家バンク パネル ==================== -->
+<div id="bank-panel" class="glass-panel">
+  <div class="bank-header font-display" id="bank-header-toggle">
+    🏘️ 空き家バンク
+    <span class="count-chip" id="bank-count">0件</span>
+  </div>
+  <div id="bank-list"><!-- JavaScriptにより自動生成 --></div>
+</div>
+
+<!-- ==================== 右下：操作ボタン群 ==================== -->
+<div id="control-stack">
+  <div id="layer-switch">
+    <div id="layer-panel" class="glass-panel">
+      <div class="layer-option active" data-layer="standard">
+        <div class="thumb standard"></div><span>標準地図</span>
+      </div>
+      <div class="layer-option" data-layer="satellite">
+        <div class="thumb satellite"></div><span>航空写真</span>
+      </div>
+    </div>
+    <button class="fab-btn fab-single" id="layer-toggle-btn" title="地図の種類を切り替え"><span class="fab-icon">🗺️</span></button>
+  </div>
+  <button class="fab-btn fab-single" id="locate-btn" title="現在地を表示"><span class="fab-icon">📍</span></button>
+  <button class="fab-btn fab-single" id="fullscreen-btn" title="全画面表示"><span class="fab-icon">⛶</span></button>
+  <div class="fab-group">
+    <button class="fab-btn" id="zoom-in-btn" title="拡大">＋</button>
+    <button class="fab-btn" id="zoom-out-btn" title="縮小">－</button>
+  </div>
+</div>
+
+<!-- スマホ用：空き家バンク一覧トグルボタン -->
+<button id="bank-toggle-btn" class="glass-panel" style="position:absolute; z-index:601;">🏘️</button>
+
+<!-- ==================== 詳細モーダル：空家等活用促進区域について ==================== -->
+<div class="modal-overlay" id="tokku-modal">
+  <div class="modal-panel glass-panel-strong">
+    <div class="modal-header">
+      <div class="modal-header-inner">
+        <p class="modal-eyebrow">兵庫県 洲本市 中心市街地</p>
+        <h2 class="modal-title font-display">空家等活用促進区域とは</h2>
+      </div>
+      <button class="modal-close" id="modal-close-btn" title="閉じる">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="modal-summary-row" id="modal-summary-row">
+        <div class="s-box"><span class="s-val" id="sum-districts">-</span><span class="s-lbl">対象地区</span></div>
+        <div class="s-box"><span class="s-val" id="sum-population">-</span><span class="s-lbl">人口(人)</span></div>
+        <div class="s-box"><span class="s-val" id="sum-households">-</span><span class="s-lbl">世帯数</span></div>
+        <div class="s-box"><span class="s-val" id="sum-area">-</span><span class="s-lbl">面積(ha)</span></div>
+      </div>
+
+      <section class="modal-section">
+        <h3>🏛️ 制度の概要</h3>
+        <p>2023年の空家法（空家等対策の推進に関する特別措置法）改正により新設されたのが「空家等活用促進区域」制度です。市区町村があらかじめ区域と活用の方針（活用促進指針）を定めることで、区域内にある空き家の建て替えや用途変更にかかる接道規制・用途規制を合理化できます。これにより、これまで規制がネックとなっていた空き家の再生がしやすくなり、地域の賑わいづくりにつながることが期待されています。</p>
+      </section>
+
+      <section class="modal-section">
+        <h3>✨ 主なメリット</h3>
+        <ul class="modal-list">
+          <li>建て替え・用途変更にかかる接道規制・用途規制の緩和</li>
+          <li>市区町村から所有者への活用の働きかけ（要請）</li>
+          <li>空き家バンクを通じた活用希望者とのマッチング</li>
+          <li>空き家の増加による景観悪化・防災リスクの抑制</li>
+        </ul>
+      </section>
+
+      <section class="modal-section">
+        <h3>📍 対象地区（町丁目データより集計）</h3>
+        <div class="district-grid" id="district-grid"><!-- JSで自動生成 --></div>
+      </section>
+
+      <section class="modal-section modal-note">
+        <p>※ 表示している区域範囲・人口や世帯数は、国勢調査ベースの町丁目境界データ（tokku.geojson）を用いた参考表示です。実際の指定区域・支援内容の詳細は洲本市の公式情報をご確認ください。</p>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 詳細モーダル：空き家バンク物件（写真確認後、任意でサイトへ） ==================== -->
+<div class="modal-overlay" id="house-modal">
+  <div class="modal-panel glass-panel-strong house-modal-panel">
+    <button class="modal-close house-modal-close" id="house-modal-close-btn" title="閉じる">✕</button>
+    <img class="house-modal-photo" id="house-modal-photo" src="" alt="">
+    <div class="modal-body">
+      <p class="house-modal-eyebrow" id="house-modal-badge">空き家バンク</p>
+      <h2 class="modal-title font-display house-modal-title" id="house-modal-title"></h2>
+      <p class="house-modal-sub" id="house-modal-sub"></p>
+      <p class="popup-address house-modal-address" id="house-modal-address">📍 <span></span></p>
+      <p class="house-modal-desc" id="house-modal-desc"></p>
+      <a class="popup-cta house-modal-link" id="house-modal-link" href="#" target="_blank" rel="noopener">
+        サイトで詳しく見る ▶
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- トースト通知 -->
+<div id="toast"></div>
 
 <script>
+/* =========================================================================
+   ここから JavaScript 本体
+   編集が必要なのは基本的に houses 配列のみ。
+   （一覧カード／地図マーカー／ポップアップは全て自動生成されます）
+   ========================================================================= */
 
-const map=L.map("map");
+/* -------------------------------------------------------------------------
+   ① 空き家バンク データ
+   title / address / lat / lng / image / url / description の
+   7項目だけを編集すればOK。
+------------------------------------------------------------------------- */
+const houses = [
+  {
+    title: "栄町の古民家住宅",
+    address: "兵庫県洲本市栄町1丁目",
+    lat: 34.3428,
+    lng: 134.8987,
+    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80",
+    url: "https://www.city.sumoto.lg.jp/",
+    description: "築80年・平屋の趣ある古民家。商店街まで徒歩3分。"
+  },
+  {
+    title: "本町の町家",
+    address: "兵庫県洲本市本町3丁目",
+    lat: 34.3441,
+    lng: 134.9002,
+    image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80",
+    url: "https://www.city.sumoto.lg.jp/",
+    description: "築65年・2階建て町家。リノベーション向き物件。"
+  },
+  {
+    title: "山手の一戸建て",
+    address: "兵庫県洲本市山手1丁目",
+    lat: 34.3405,
+    lng: 134.9033,
+    image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=80",
+    url: "https://www.city.sumoto.lg.jp/",
+    description: "築45年・高台に建つ眺望良好な住宅。庭付き。"
+  },
+  {
+    title: "海岸通のテラスハウス",
+    address: "兵庫県洲本市海岸通1丁目",
+    lat: 34.3462,
+    lng: 134.8965,
+    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80",
+    url: "https://www.city.sumoto.lg.jp/",
+    description: "築30年・海が見えるテラスハウス。カフェ開業実績あり。"
+  }
+];
 
-L.tileLayer(
-"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-{
-    attribution:"©OpenStreetMap ©CartoDB",
-    maxZoom:20
-}).addTo(map);
+/* -------------------------------------------------------------------------
+   ② 地図の初期化（初期表示は淡路島全体）
+------------------------------------------------------------------------- */
+const map = L.map('map', {
+  zoomControl: false,
+  attributionControl: true,
+  minZoom: 10,           // 淡路島から大きく離れられないよう最小ズームを制限
+  maxBoundsViscosity: 1.0 // 範囲外へのドラッグをしっかり跳ね返す
+}).setView([34.45, 134.90], 10);
 
-// GeoJSONを読み込む
-fetch("tokku.geojson")
-.then(res=>res.json())
-.then(data=>{
+/* 淡路島全体をカバーする表示範囲（この範囲より外へはパン／ズームアウトできない） */
+const AWAJI_BOUNDS = L.latLngBounds(
+  [34.10, 134.62], // 南西（沼島・鳴門海峡側）
+  [34.70, 135.05]  // 北東（明石海峡側）
+);
+map.setMaxBounds(AWAJI_BOUNDS);
 
-    const geo=L.geoJSON(data,{
+const standardLayer = L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  { attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; OpenStreetMap contributors', subdomains: 'abcd', maxZoom: 20 }
+).addTo(map);
 
-        style:function(feature){
+const satelliteLayer = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Tiles &copy; Esri', maxZoom: 19 }
+);
 
-            return{
+L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map);
 
-                color:"#d35400",
-                weight:2,
+/* -------------------------------------------------------------------------
+   ③ 空家等活用促進区域（GeoJSON）の読み込みと表示
+   ※ tokku.geojson には町丁目ごとの人口(JINKO)・世帯数(SETAI)・面積(AREA㎡)
+      などの実データが入っているため、ポップアップやモーダルに反映する。
+------------------------------------------------------------------------- */
 
-                fillColor:"#ff9800",
-                fillOpacity:0.35
+const tokkuStyleDefault = { color: '#FF9800', weight: 2, opacity: 0.9, fillColor: '#FF9800', fillOpacity: 0.30 };
+const tokkuStyleHover   = { color: '#F57C00', weight: 3, opacity: 1,   fillColor: '#FF9800', fillOpacity: 0.62 };
 
-            }
+// 「対象地区」として案内する4つの大分類（町丁目名の頭文字でグルーピング）
+const DISTRICT_GROUPS = ['本町', '山手', '栄町', '海岸通'];
 
-        },
+let tokkuLayer = null;
+let tokkuFeaturesCache = []; // モーダル・統計計算用にプロパティを保持
 
-        onEachFeature:function(feature,layer){
+// 1件の町丁目ポリゴンをクリックした際のポップアップHTML（実データ反映）
+function buildTokkuPopupHTML(props){
+  const areaHa = (props.AREA / 10000).toFixed(1);
+  return `
+    <div class="popup-tokku">
+      <div class="popup-band">
+        <p class="popup-eyebrow">空家等活用促進区域</p>
+        <p class="popup-title font-display">🏠 ${props.S_NAME || '対象地区'}</p>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats">
+          <div class="stat-box"><span class="val">${props.JINKO ?? '-'}</span><span class="lbl">人口(人)</span></div>
+          <div class="stat-box"><span class="val">${props.SETAI ?? '-'}</span><span class="lbl">世帯数</span></div>
+          <div class="stat-box"><span class="val">${areaHa}</span><span class="lbl">面積(ha)</span></div>
+        </div>
+        <p class="popup-desc">この区域は空家等活用促進区域に指定されており、建て替え・用途変更の規制が緩和されています。空き家をカフェや宿泊施設、工房などへ活用しやすいエリアです。</p>
+        <button class="popup-more-btn" onclick="openTokkuModal()">制度についてくわしく見る ▶</button>
+      </div>
+    </div>
+  `;
+}
 
-            layer.bindTooltip(
-                "空き家活用特区",
-                {
-                    sticky:true,
-                    direction:"top"
-                }
-            );
+fetch('tokku.geojson')
+  .then(res => {
+    if(!res.ok) throw new Error('tokku.geojson が見つかりません');
+    return res.json();
+  })
+  .then(data => {
+    tokkuFeaturesCache = data.features.map(f => f.properties);
 
-            layer.bindPopup(`
-<h2>🏠 空き家活用特区</h2>
-
-<p>
-兵庫県指定の空き家活用特区です。
-</p>
-
-<b>対象地区</b>
-
-<ul>
-<li>栄町</li>
-<li>本町</li>
-<li>山手</li>
-<li>海岸通</li>
-</ul>
-
-<p>
-空き家の活用や改修・解体などについて
-各種支援制度があります。
-</p>
-
-`);
-
-            layer.on({
-
-                mouseover:function(e){
-
-                    e.target.setStyle({
-
-                        fillOpacity:0.65,
-                        weight:3
-
-                    });
-
-                },
-
-                mouseout:function(e){
-
-                    geo.resetStyle(e.target);
-
-                }
-
-            });
-
-        }
-
+    tokkuLayer = L.geoJSON(data, {
+      style: () => tokkuStyleDefault,
+      onEachFeature: (feature, layer) => {
+        layer.on('mouseover', () => layer.setStyle(tokkuStyleHover));
+        layer.on('mouseout',  () => layer.setStyle(tokkuStyleDefault));
+        layer.on('click', () => {
+          layer.bindPopup(buildTokkuPopupHTML(feature.properties), { className: 'tokku-popup', maxWidth: 280 }).openPopup();
+        });
+      }
     }).addTo(map);
 
-    map.fitBounds(geo.getBounds());
+    renderStatsFromGeoJSON(tokkuFeaturesCache);
+  })
+  .catch(err => {
+    console.warn('GeoJSON読み込みエラー:', err);
+    showToast('特区データ（tokku.geojson）を読み込めませんでした');
+  })
+  .finally(() => {
+    document.getElementById('loading-overlay').classList.add('hidden');
+  });
 
+/* -------------------------------------------------------------------------
+   ③-2 実データから統計値を計算し、インフォカード／モーダルへ反映
+------------------------------------------------------------------------- */
+function renderStatsFromGeoJSON(propsList){
+  // --- 全体集計（インフォカード用） ---
+  const totalJinko = propsList.reduce((sum, p) => sum + (p.JINKO || 0), 0);
+  const totalSetai = propsList.reduce((sum, p) => sum + (p.SETAI || 0), 0);
+
+  document.getElementById('stat-districts').textContent = propsList.length;
+  document.getElementById('stat-population').textContent = totalJinko.toLocaleString();
+  document.getElementById('stat-households').textContent = totalSetai.toLocaleString();
+
+  document.getElementById('sum-districts').textContent = propsList.length + '地区';
+  document.getElementById('sum-population').textContent = totalJinko.toLocaleString();
+  document.getElementById('sum-households').textContent = totalSetai.toLocaleString();
+  const totalAreaHa = propsList.reduce((sum, p) => sum + (p.AREA || 0), 0) / 10000;
+  document.getElementById('sum-area').textContent = totalAreaHa.toFixed(1);
+
+  // --- 4地区（本町／山手／栄町／海岸通）ごとにグループ集計してモーダルへ表示 ---
+  const grid = document.getElementById('district-grid');
+  grid.innerHTML = '';
+
+  const maxJinkoForBar = Math.max(...DISTRICT_GROUPS.map(name =>
+    propsList.filter(p => (p.S_NAME || '').startsWith(name)).reduce((s, p) => s + (p.JINKO || 0), 0)
+  ), 1);
+
+  DISTRICT_GROUPS.forEach((name) => {
+    const items = propsList.filter(p => (p.S_NAME || '').startsWith(name));
+    if(items.length === 0) return; // データに存在しない場合はスキップ
+
+    const jinko = items.reduce((s, p) => s + (p.JINKO || 0), 0);
+    const setai = items.reduce((s, p) => s + (p.SETAI || 0), 0);
+    const areaHa = (items.reduce((s, p) => s + (p.AREA || 0), 0) / 10000).toFixed(1);
+    const barPct = Math.round((jinko / maxJinkoForBar) * 100);
+
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="district-card">
+        <div class="d-name">🏠 ${name} <span class="d-count">${items.length}町丁目</span></div>
+        <div class="d-row"><span>人口</span><b>${jinko.toLocaleString()}人</b></div>
+        <div class="d-row"><span>世帯数</span><b>${setai.toLocaleString()}世帯</b></div>
+        <div class="d-row"><span>面積</span><b>${areaHa}ha</b></div>
+        <div class="d-bar-track"><div class="d-bar-fill" style="width:${barPct}%"></div></div>
+      </div>
+    `);
+  });
+}
+
+/* -------------------------------------------------------------------------
+   ③-3 詳細モーダルの開閉
+------------------------------------------------------------------------- */
+const tokkuModal = document.getElementById('tokku-modal');
+
+function openTokkuModal(){ tokkuModal.classList.add('open'); }
+function closeTokkuModal(){ tokkuModal.classList.remove('open'); }
+
+document.getElementById('info-more-btn').addEventListener('click', openTokkuModal);
+document.getElementById('modal-close-btn').addEventListener('click', closeTokkuModal);
+tokkuModal.addEventListener('click', (e) => { if(e.target === tokkuModal) closeTokkuModal(); });
+document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeTokkuModal(); });
+
+/* -------------------------------------------------------------------------
+   ④ 空き家バンク：マーカー・ポップアップ・一覧カードの自動生成
+------------------------------------------------------------------------- */
+function createHouseIcon(){
+  return L.divIcon({
+    className: 'custom-house-marker',
+    html: `<div class="marker-pin"><span class="marker-icon">🏠</span></div>`,
+    iconSize: [36, 36], iconAnchor: [18, 34], popupAnchor: [0, -32]
+  });
+}
+
+// ポップアップ内の「詳細を見る」は外部サイトへ即遷移せず、まず詳細モーダルを開く
+function buildHousePopupHTML(item, index){
+  return `
+    <div class="popup-house">
+      <img class="popup-photo" src="${item.image}" alt="${item.title}"
+           onerror="this.src='https://placehold.jp/280x130.png?text=No+Image'">
+      <div class="popup-body">
+        <p class="popup-title">${item.title}</p>
+        <p class="popup-sub">${item.description}</p>
+        <p class="popup-address">📍 <span>${item.address}</span></p>
+        <button type="button" class="popup-cta" style="border:none; cursor:pointer;" onclick="openHouseModal(${index})">詳細を見る ▶</button>
+      </div>
+    </div>
+  `;
+}
+
+function buildHouseCardHTML(item, index){
+  return `
+    <div class="house-card" data-index="${index}">
+      <div class="card-photo-wrap" data-role="photo">
+        <span class="card-badge">空き家バンク</span>
+        <img src="${item.image}" alt="${item.title}"
+             onerror="this.src='https://placehold.jp/280x100.png?text=No+Image'">
+      </div>
+      <div class="card-body">
+        <p class="card-title">${item.title}</p>
+        <p class="card-sub">${item.description}</p>
+        <button type="button" class="card-link" style="background:none; border:none; padding:0; cursor:pointer;" data-role="detail">▶ 詳細を見る</button>
+      </div>
+    </div>
+  `;
+}
+
+const houseMarkers = houses.map((item, index) => {
+  const marker = L.marker([item.lat, item.lng], { icon: createHouseIcon() }).addTo(map);
+  marker.bindPopup(buildHousePopupHTML(item, index), { maxWidth: 280 });
+  return marker;
 });
 
-</script>
+const bankListEl = document.getElementById('bank-list');
+document.getElementById('bank-count').textContent = houses.length + '件';
+houses.forEach((item, index) => bankListEl.insertAdjacentHTML('beforeend', buildHouseCardHTML(item, index)));
 
+document.querySelectorAll('.house-card').forEach((card) => {
+  const index = Number(card.dataset.index);
+  const item = houses[index];
+
+  // 写真クリック → 即座に外部サイトへは飛ばず、まず詳細モーダルで写真と情報を確認できるようにする
+  const photoEl = card.querySelector('[data-role="photo"]');
+  photoEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openHouseModal(index);
+  });
+
+  // 「▶ 詳細を見る」テキストリンクも同様にモーダルを開く
+  const detailBtn = card.querySelector('[data-role="detail"]');
+  detailBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openHouseModal(index);
+  });
+
+  // カード本体クリック → 地図を移動してマーカーのポップアップを開く（外部サイトへは飛ばない）
+  card.addEventListener('click', () => {
+    map.flyTo([item.lat, item.lng], 16, { duration: 0.9 });
+    houseMarkers[index].openPopup();
+    if (window.innerWidth <= 768) document.getElementById('bank-panel').classList.remove('open');
+  });
+});
+
+/* -------------------------------------------------------------------------
+   ④-2 空き家詳細モーダル：写真・情報をしっかり確認してから、
+        利用者自身の意思で「サイトで詳しく見る」ボタンを押して外部サイトへ移動する
+------------------------------------------------------------------------- */
+const houseModal = document.getElementById('house-modal');
+
+function openHouseModal(index){
+  const item = houses[index];
+  if(!item) return;
+
+  document.getElementById('house-modal-photo').src = item.image;
+  document.getElementById('house-modal-photo').alt = item.title;
+  document.getElementById('house-modal-title').textContent = item.title;
+  document.getElementById('house-modal-sub').textContent = item.description;
+  document.getElementById('house-modal-address').querySelector('span').textContent = item.address;
+  document.getElementById('house-modal-desc').textContent = item.description;
+
+  const linkEl = document.getElementById('house-modal-link');
+  linkEl.href = item.url;
+
+  houseModal.classList.add('open');
+}
+
+function closeHouseModal(){ houseModal.classList.remove('open'); }
+
+document.getElementById('house-modal-close-btn').addEventListener('click', closeHouseModal);
+houseModal.addEventListener('click', (e) => { if(e.target === houseModal) closeHouseModal(); });
+document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeHouseModal(); });
+
+/* -------------------------------------------------------------------------
+   ⑤ ズームボタン
+------------------------------------------------------------------------- */
+document.getElementById('zoom-in-btn').addEventListener('click', () => map.zoomIn());
+document.getElementById('zoom-out-btn').addEventListener('click', () => map.zoomOut());
+
+/* -------------------------------------------------------------------------
+   ⑥ 現在地ボタン
+------------------------------------------------------------------------- */
+let myLocationMarker = null;
+const locateBtn = document.getElementById('locate-btn');
+
+locateBtn.addEventListener('click', () => {
+  if(!navigator.geolocation){ showToast('この端末では現在地を取得できません'); return; }
+  locateBtn.classList.add('locating');
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      locateBtn.classList.remove('locating');
+      const { latitude, longitude } = pos.coords;
+      if(myLocationMarker) map.removeLayer(myLocationMarker);
+      myLocationMarker = L.marker([latitude, longitude], {
+        icon: L.divIcon({ className:'', html:'<div class="my-location-dot"></div>', iconSize:[18,18], iconAnchor:[9,9] })
+      }).addTo(map);
+      map.flyTo([latitude, longitude], 15, { duration: 0.9 });
+    },
+    () => { locateBtn.classList.remove('locating'); showToast('現在地を取得できませんでした（位置情報の許可をご確認ください）'); }
+  );
+});
+
+/* -------------------------------------------------------------------------
+   ⑦ フルスクリーンボタン
+------------------------------------------------------------------------- */
+document.getElementById('fullscreen-btn').addEventListener('click', () => {
+  const el = document.documentElement;
+  if(!document.fullscreenElement){
+    el.requestFullscreen?.().catch(() => showToast('全画面表示に対応していません'));
+  } else {
+    document.exitFullscreen?.();
+  }
+});
+
+/* -------------------------------------------------------------------------
+   ⑧ 地図切替（標準／航空写真）
+------------------------------------------------------------------------- */
+const layerToggleBtn = document.getElementById('layer-toggle-btn');
+const layerPanel = document.getElementById('layer-panel');
+layerToggleBtn.addEventListener('click', () => layerPanel.classList.toggle('open'));
+
+document.querySelectorAll('.layer-option').forEach((opt) => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.layer-option').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    if(opt.dataset.layer === 'satellite'){ map.removeLayer(standardLayer); satelliteLayer.addTo(map); }
+    else { map.removeLayer(satelliteLayer); standardLayer.addTo(map); }
+    layerPanel.classList.remove('open');
+  });
+});
+
+document.addEventListener('click', (e) => {
+  if(!document.getElementById('layer-switch').contains(e.target)) layerPanel.classList.remove('open');
+});
+
+/* -------------------------------------------------------------------------
+   ⑨ 住所検索（Nominatimジオコーディング）
+------------------------------------------------------------------------- */
+const searchInput = document.getElementById('search-input');
+const searchBtn = document.getElementById('search-btn');
+const searchSuggest = document.getElementById('search-suggest');
+
+async function runSearch(){
+  const query = searchInput.value.trim();
+  if(!query) return;
+
+  searchSuggest.innerHTML = '<div class="suggest-item">検索中...</div>';
+  searchSuggest.style.display = 'block';
+
+  try{
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=jp` +
+                `&viewbox=134.75,34.62,135.05,34.20&bounded=0&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    const results = await res.json();
+
+    if(!results.length){
+      searchSuggest.innerHTML = '<div class="suggest-item">該当する場所が見つかりませんでした</div>';
+      return;
+    }
+
+    searchSuggest.innerHTML = '';
+    results.forEach((r) => {
+      const div = document.createElement('div');
+      div.className = 'suggest-item';
+      div.textContent = r.display_name;
+      div.addEventListener('click', () => {
+        map.flyTo([Number(r.lat), Number(r.lon)], 16, { duration: 0.9 });
+        searchSuggest.style.display = 'none';
+      });
+      searchSuggest.appendChild(div);
+    });
+  } catch(err){
+    searchSuggest.innerHTML = '<div class="suggest-item">検索に失敗しました。通信環境をご確認ください</div>';
+  }
+}
+
+searchBtn.addEventListener('click', runSearch);
+searchInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') runSearch(); });
+
+document.addEventListener('click', (e) => {
+  if(!document.getElementById('search-box').contains(e.target) && !searchSuggest.contains(e.target)){
+    searchSuggest.style.display = 'none';
+  }
+});
+
+/* -------------------------------------------------------------------------
+   ⑩ スマホ用：空き家バンク ドロワー開閉
+------------------------------------------------------------------------- */
+const bankPanel = document.getElementById('bank-panel');
+const bankToggleBtn = document.getElementById('bank-toggle-btn');
+const bankHeaderToggle = document.getElementById('bank-header-toggle');
+
+function toggleBankDrawer(){ bankPanel.classList.toggle('open'); }
+bankToggleBtn.addEventListener('click', toggleBankDrawer);
+bankHeaderToggle.addEventListener('click', () => { if(window.innerWidth <= 768) toggleBankDrawer(); });
+
+function layoutMobileToggle(){
+  if(window.innerWidth <= 768){
+    Object.assign(bankToggleBtn.style, {
+      left:'10px', bottom:'14px', width:'46px', height:'46px',
+      borderRadius:'50%', border:'none', fontSize:'20px', cursor:'pointer'
+    });
+  }
+}
+layoutMobileToggle();
+window.addEventListener('resize', layoutMobileToggle);
+
+/* -------------------------------------------------------------------------
+   ⑪ トースト通知ユーティリティ
+------------------------------------------------------------------------- */
+let toastTimer = null;
+function showToast(message){
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+</script>
 </body>
 </html>
