@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>洲本市 空き家活用特区マップ</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -11,12 +12,12 @@
 html,body{
     margin:0;
     height:100%;
-    font-family:"Yu Gothic","Meiryo",sans-serif;
+    font-family:-apple-system,BlinkMacSystemFont,"Yu Gothic","Meiryo",sans-serif;
 }
 
 #map{
-    height:100%;
     width:100%;
+    height:100vh;
 }
 
 .info{
@@ -26,11 +27,9 @@ html,body{
     z-index:1000;
 
     background:white;
-    padding:14px 18px;
-
+    padding:15px 18px;
     border-radius:12px;
-
-    box-shadow:0 4px 20px rgba(0,0,0,.15);
+    box-shadow:0 6px 18px rgba(0,0,0,.15);
 }
 
 .info h2{
@@ -39,20 +38,23 @@ html,body{
 }
 
 .info p{
-    margin:5px 0 0;
+    margin:6px 0 0;
     color:#666;
+    font-size:14px;
 }
 
 .leaflet-popup-content{
-    line-height:1.7;
+    line-height:1.8;
+    font-size:15px;
 }
 
 .leaflet-tooltip{
-    background:#fff;
+    background:white;
     border:none;
     border-radius:8px;
-    box-shadow:0 3px 10px rgba(0,0,0,.2);
+    box-shadow:0 3px 12px rgba(0,0,0,.2);
     padding:8px 12px;
+    font-weight:bold;
 }
 </style>
 
@@ -61,7 +63,7 @@ html,body{
 
 <div class="info">
 <h2>🏠 空き家活用特区</h2>
-<p>洲本市（栄町・本町・山手・海岸通）</p>
+<p>兵庫県洲本市</p>
 </div>
 
 <div id="map"></div>
@@ -70,81 +72,95 @@ html,body{
 
 <script>
 
-const map=L.map("map",{
-    zoomControl:true
-}).setView([34.3437,134.9042],16);
+const map=L.map("map");
 
-// CartoDB Positron
 L.tileLayer(
-'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
 {
- attribution:'©OpenStreetMap ©CartoDB'
+    attribution:"©OpenStreetMap ©CartoDB",
+    maxZoom:20
 }).addTo(map);
 
-// GeoJSON読み込み
+// GeoJSONを読み込む
 fetch("tokku.geojson")
-.then(r=>r.json())
+.then(res=>res.json())
 .then(data=>{
 
-const layer=L.geoJSON(data,{
+    const geo=L.geoJSON(data,{
 
-style:{
-color:"#e65100",
-weight:2,
-fillColor:"#ff9800",
-fillOpacity:.35
-},
+        style:function(feature){
 
-onEachFeature:function(feature,layer){
+            return{
 
-layer.bindTooltip(
-"<b>空き家活用特区</b><br>詳細を見る",
-{
-sticky:true
-}
-);
+                color:"#d35400",
+                weight:2,
 
-layer.bindPopup(`
-<h3>🏠 空き家活用特区</h3>
+                fillColor:"#ff9800",
+                fillOpacity:0.35
+
+            }
+
+        },
+
+        onEachFeature:function(feature,layer){
+
+            layer.bindTooltip(
+                "空き家活用特区",
+                {
+                    sticky:true,
+                    direction:"top"
+                }
+            );
+
+            layer.bindPopup(`
+<h2>🏠 空き家活用特区</h2>
 
 <p>
 兵庫県指定の空き家活用特区です。
 </p>
 
+<b>対象地区</b>
+
 <ul>
-<li>空き家改修補助</li>
-<li>空き家解体補助</li>
-<li>空き家相談窓口</li>
+<li>栄町</li>
+<li>本町</li>
+<li>山手</li>
+<li>海岸通</li>
 </ul>
+
+<p>
+空き家の活用や改修・解体などについて
+各種支援制度があります。
+</p>
 
 `);
 
-layer.on({
+            layer.on({
 
-mouseover:function(e){
+                mouseover:function(e){
 
-e.target.setStyle({
+                    e.target.setStyle({
 
-fillOpacity:.65,
-weight:3
+                        fillOpacity:0.65,
+                        weight:3
 
-});
+                    });
 
-},
+                },
 
-mouseout:function(e){
+                mouseout:function(e){
 
-layer.resetStyle(e.target);
+                    geo.resetStyle(e.target);
 
-}
+                }
 
-});
+            });
 
-}
+        }
 
-}).addTo(map);
+    }).addTo(map);
 
-map.fitBounds(layer.getBounds());
+    map.fitBounds(geo.getBounds());
 
 });
 
