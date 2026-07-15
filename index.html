@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>洲本市 空き家活用特区マップ</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+html,body{
+    margin:0;
+    height:100%;
+    font-family:"Yu Gothic","Meiryo",sans-serif;
+}
+
+#map{
+    height:100%;
+    width:100%;
+}
+
+.info{
+    position:absolute;
+    top:15px;
+    left:15px;
+    z-index:1000;
+
+    background:white;
+    padding:14px 18px;
+
+    border-radius:12px;
+
+    box-shadow:0 4px 20px rgba(0,0,0,.15);
+}
+
+.info h2{
+    margin:0;
+    font-size:20px;
+}
+
+.info p{
+    margin:5px 0 0;
+    color:#666;
+}
+
+.leaflet-popup-content{
+    line-height:1.7;
+}
+
+.leaflet-tooltip{
+    background:#fff;
+    border:none;
+    border-radius:8px;
+    box-shadow:0 3px 10px rgba(0,0,0,.2);
+    padding:8px 12px;
+}
+</style>
+
+</head>
+<body>
+
+<div class="info">
+<h2>🏠 空き家活用特区</h2>
+<p>洲本市（栄町・本町・山手・海岸通）</p>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+
+const map=L.map("map",{
+    zoomControl:true
+}).setView([34.3437,134.9042],16);
+
+// CartoDB Positron
+L.tileLayer(
+'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+{
+ attribution:'©OpenStreetMap ©CartoDB'
+}).addTo(map);
+
+// GeoJSON読み込み
+fetch("tokku.geojson")
+.then(r=>r.json())
+.then(data=>{
+
+const layer=L.geoJSON(data,{
+
+style:{
+color:"#e65100",
+weight:2,
+fillColor:"#ff9800",
+fillOpacity:.35
+},
+
+onEachFeature:function(feature,layer){
+
+layer.bindTooltip(
+"<b>空き家活用特区</b><br>詳細を見る",
+{
+sticky:true
+}
+);
+
+layer.bindPopup(`
+<h3>🏠 空き家活用特区</h3>
+
+<p>
+兵庫県指定の空き家活用特区です。
+</p>
+
+<ul>
+<li>空き家改修補助</li>
+<li>空き家解体補助</li>
+<li>空き家相談窓口</li>
+</ul>
+
+`);
+
+layer.on({
+
+mouseover:function(e){
+
+e.target.setStyle({
+
+fillOpacity:.65,
+weight:3
+
+});
+
+},
+
+mouseout:function(e){
+
+layer.resetStyle(e.target);
+
+}
+
+});
+
+}
+
+}).addTo(map);
+
+map.fitBounds(layer.getBounds());
+
+});
+
+</script>
+
+</body>
+</html>
